@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pine Valley 3D Disc Golf Championship</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Three.js with robust fallback hierarchy -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>if (typeof THREE === 'undefined') document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');</script>
+  <script>if (typeof THREE === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');</script>
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="game-container"></div>
+
+  <!-- HUD Overlay Root -->
+  <div id="ui-root">
+
+    <!-- Top Bar: Hole Info, Distance, Strokes, Action Buttons -->
+    <header id="top-hud">
+      <div class="hole-info-card glass-panel interactive">
+        <div class="hole-number-box">
+          <div class="label">HOLE</div>
+          <div class="val" id="hud-hole-num">1</div>
+        </div>
+        <div class="hole-meta">
+          <h2 id="hud-hole-name">Pine Valley Meadow</h2>
+          <div class="stats-row">
+            <span>PAR <b id="hud-par">3</b></span>
+            <span>•</span>
+            <span><b id="hud-dist-ft">245</b> FT (<b id="hud-dist-m">75</b> M)</span>
+            <span class="circle-badge on-tee" id="hud-circle-badge">⛳ TEE PAD</span>
+            <span class="mando-badge hidden" id="hud-mando-badge">⚠️ MANDO: PASS LEFT</span>
+          </div>
+        </div>
+        <div class="stroke-counter-box">
+          <div class="stats-row" style="margin:0">
+            <span>STROKE: <b id="hud-strokes" style="font-size:1.2rem; color:#facc15">1</b></span>
+          </div>
+          <span class="stroke-badge" id="stroke-badge">TEE SHOT</span>
+        </div>
+      </div>
+
+      <div class="top-actions interactive">
+        <button id="btn-throw-style" class="hud-btn style-toggle-btn" title="Toggle Backhand (RHBH) / Forehand (RHFH) [H]">
+          <span class="style-tag bh" id="style-tag">RHBH</span>
+          <span id="throw-style-label">Backhand [H]</span>
+        </button>
+
+        <button id="btn-aim-basket" class="hud-btn primary" title="Realign camera heading straight toward the target basket [B]">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Aim at Basket [B]</span>
+        </button>
+
+        <button id="btn-cam-toggle" class="hud-btn" title="Toggle Chase / First-Person View [C]">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span id="cam-label">CHASE CAM [C]</span>
+        </button>
+
+        <button id="btn-freecam" class="hud-btn highlight" title="Hole Preview & Free Drone Cam [P]">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          <span>Hole Preview [P]</span>
+        </button>
+
+        <button id="btn-scorecard" class="hud-btn" title="View 9-Hole Scorecard [Tab]">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          <span>Scorecard [Tab]</span>
+        </button>
+
+        <button id="btn-course-select" class="hud-btn autumn-glow" title="Select Championship Course [M]">
+          <span style="font-size:1.1rem; line-height:1">🍁</span>
+          <span>Courses [M]</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Side Widgets: Enhanced Hole Preview and Wind Indicator -->
+    <div id="side-widgets" class="interactive">
+      <div class="minimap-panel glass-panel" id="minimap-panel">
+        <div class="minimap-header-row">
+          <div class="panel-header" id="minimap-hole-title">HOLE 1 PREVIEW</div>
+          <div class="minimap-par-tag" id="minimap-par-tag">PAR 3</div>
+        </div>
+        <div class="minimap-dist-badge" id="minimap-dist-badge">📍 325 FT TO BASKET</div>
+        <canvas id="minimap-canvas" width="220" height="240"></canvas>
+        <div class="minimap-footer-bar">
+          <span id="minimap-shot-tag">SHOT 1 (TEE PAD)</span>
+          <span id="minimap-elev-tag" class="elev-tag">FLAT</span>
+        </div>
+      </div>
+
+      <div class="wind-panel glass-panel">
+        <div class="wind-dial">
+          <div class="wind-arrow" id="wind-arrow"></div>
+        </div>
+        <div class="wind-info">
+          <div class="panel-header" style="margin:0">Wind</div>
+          <div class="wind-speed" id="wind-speed">8 MPH</div>
+          <div class="wind-relation" id="wind-relation">HEADWIND</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification (Discs Landed, OB Hazards, Tree Kicks) -->
+    <div id="toast-notification" class="hidden">DISC LANDED</div>
+
+    <!-- Hole Complete Celebration Banner -->
+    <div id="celebration-banner" class="hidden">
+      <div id="celeb-title">BIRDIE!</div>
+      <div id="celeb-details">Hole 1 completed in 2 strokes (Par 3)</div>
+    </div>
+
+    <!-- Quick Tap-In Action Button (Within 5 FT) -->
+    <button id="btn-tap-in" class="tap-in-btn hidden" title="Tap In (within 5 ft) [Space / Enter]">
+      <span class="tap-icon">⛳</span>
+      <span id="tap-in-text">TAP IN PUTT (3.2 FT) [SPACE]</span>
+    </button>
+
+    <!-- Bottom Controls: Disc Selector, Hyzer/Nose Sliders, 3-Click Meter -->
+    <footer id="bottom-hud">
+
+      <!-- Disc Bag Selection & Flight Numbers -->
+      <div class="disc-bag-panel glass-panel interactive">
+        <div class="disc-list">
+          <div class="disc-btn" data-disc="0">
+            <span class="disc-dot putter"></span>
+            <span class="name">Putter</span>
+            <span class="hotkey">[1]</span>
+          </div>
+          <div class="disc-btn" data-disc="1">
+            <span class="disc-dot mid"></span>
+            <span class="name">Midrange</span>
+            <span class="hotkey">[2]</span>
+          </div>
+          <div class="disc-btn active" data-disc="2">
+            <span class="disc-dot driver"></span>
+            <span class="name">Driver</span>
+            <span class="hotkey">[3]</span>
+          </div>
+        </div>
+
+        <div class="flight-ratings-row">
+          <div class="flight-stats">
+            <div class="stat-item"><span class="lbl">SPD</span><span class="num" id="stat-speed">9</span></div>
+            <div class="stat-item"><span class="lbl">GLD</span><span class="num" id="stat-glide">5</span></div>
+            <div class="stat-item"><span class="lbl">TRN</span><span class="num" id="stat-turn">-1</span></div>
+            <div class="stat-item"><span class="lbl">FAD</span><span class="num" id="stat-fade">3</span></div>
+          </div>
+          <div class="disc-labels">
+            <div class="disc-name" id="active-disc-name">Destroyer Pro</div>
+            <div class="disc-mold" id="active-disc-mold">FAIRWAY DRIVER</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Release Angle (Hyzer/Anhyzer) & Nose Angle Sliders with Visual Preview -->
+      <div class="angles-panel glass-panel interactive">
+        <!-- Visual Attitude & Flight Prediction Card -->
+        <div class="attitude-card">
+          <div class="attitude-dial" id="attitude-dial" title="Real-time Disc Orientation">
+            <div class="horizon-ref"></div>
+            <div class="disc-preview-icon" id="disc-preview-icon">
+              <div class="disc-icon-rim"></div>
+              <div class="disc-icon-center"></div>
+            </div>
+          </div>
+          <div class="attitude-feedback">
+            <div class="flight-type-badge type-straight" id="flight-type-badge">FLAT STRAIGHT SHOT</div>
+            <div class="attitude-detail" id="attitude-detail">Release Tilt: Flat • Nose: +8° Up</div>
+          </div>
+        </div>
+
+        <!-- Only Slider: Release Angle (Hyzer / Flat / Anhyzer) -->
+        <div class="control-group">
+          <div class="group-header">
+            <span>DISC RELEASE TILT [Q/E]:</span>
+            <span class="val" id="hyzer-val">0° FLAT RELEASE</span>
+          </div>
+          <input type="range" id="slider-hyzer" class="slider-input" min="-45" max="45" value="0" step="1">
+        </div>
+
+        <!-- Nose Pitch Angle: Controlled directly via vertical cursor aiming -->
+        <div class="control-group nose-pitch-gauge">
+          <div class="group-header">
+            <span>NOSE PITCH [AIM CURSOR ↕ / R,F]:</span>
+            <span class="val" id="nose-val">+6° NOSE UP</span>
+          </div>
+          <div class="pitch-track-bar">
+            <div class="pitch-track-center"></div>
+            <div class="pitch-needle" id="pitch-needle"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-Click Throw Meter & Big Action Button -->
+      <div class="throw-meter-panel glass-panel interactive">
+        <div class="meter-status" id="meter-status-text">CLICK 'THROW' OR [SPACE] TO START POWER</div>
+
+        <!-- Power Bar (0 to 100%) -->
+        <div class="power-track">
+          <div class="power-fill" id="meter-power-fill"></div>
+        </div>
+
+        <!-- Accuracy Sweet Spot Track -->
+        <div class="accuracy-track">
+          <div class="accuracy-sweet-spot"></div>
+          <div class="accuracy-needle" id="meter-accuracy-needle"></div>
+        </div>
+
+        <button id="btn-throw" class="throw-btn">THROW DISC [SPACE]</button>
+      </div>
+
+    </footer>
+
+  </div>
+
+  <!-- Drone Free Cam / Hole Preview Overlay -->
+  <div id="freecam-overlay" class="freecam-overlay glass-panel hidden">
+    <div class="fc-top-bar">
+      <div class="fc-title-badge">🚁 HOLE PREVIEW & DRONE FREECAM</div>
+      <div class="fc-hint">
+        <span><b>WASD / Arrows:</b> Move</span>
+        <span>•</span>
+        <span><b>Q / E:</b> Down / Up</span>
+        <span>•</span>
+        <span><b>Mouse Drag:</b> Look Around</span>
+        <span>•</span>
+        <span><b>[P] or [ESC]:</b> Return to Throw</span>
+      </div>
+    </div>
+    <div class="fc-quick-bar">
+      <button id="fc-btn-tee" class="fc-btn">⛳ Tee Pad</button>
+      <button id="fc-btn-fairway" class="fc-btn">🎯 Mid-Fairway</button>
+      <button id="fc-btn-basket" class="fc-btn highlight">📍 Target Basket & Green</button>
+      <button id="fc-btn-flythrough" class="fc-btn gold">▶ Flyover Tour</button>
+      <button id="fc-btn-return" class="fc-btn return-btn">↩ BACK TO THROW [ESC]</button>
+    </div>
+  </div>
+
+  <!-- Persistent 9-Hole Scorecard Modal -->
+  <div id="modal-scorecard" class="modal-overlay hidden">
+    <div class="modal-content glass-panel" style="max-width: 680px">
+      <div class="modal-header">
+        <h3>Pine Valley Championship Scorecard</h3>
+        <button id="btn-close-scorecard" class="modal-close-btn">&times;</button>
+      </div>
+
+      <!-- Circle 1 & 2 Live Tournament Stats Banner -->
+      <div class="sc-c1-summary">
+        <div class="sc-stat-pill">
+          <span class="lbl">C1 in Reg:</span>
+          <span class="val" id="sc-stat-c1r">0%</span>
+        </div>
+        <div class="sc-stat-pill">
+          <span class="lbl">C2 in Reg:</span>
+          <span class="val" id="sc-stat-c2r">0%</span>
+        </div>
+        <div class="sc-stat-pill">
+          <span class="lbl">C1X Putting:</span>
+          <span class="val" id="sc-stat-c1x">0% (0/0)</span>
+        </div>
+        <div class="sc-stat-pill">
+          <span class="lbl">C2 Putts Made:</span>
+          <span class="val" id="sc-stat-c2p">0</span>
+        </div>
+        <div class="sc-stat-pill">
+          <span class="lbl">Scramble:</span>
+          <span class="val" id="sc-stat-scramble">0%</span>
+        </div>
+      </div>
+
+      <table class="scorecard-table">
+        <thead>
+          <tr>
+            <th>Hole</th>
+            <th>Name</th>
+            <th>Dist</th>
+            <th>Par</th>
+            <th>Green</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="scorecard-body">
+          <!-- Populated dynamically via JS -->
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="2">TOTAL</th>
+            <th id="sc-total-dist">3,405 FT</th>
+            <th id="sc-total-par">30</th>
+            <th>-</th>
+            <th><span id="sc-total-strokes">0</span> (<span id="sc-total-diff">E</span>)</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Course Selection Modal (Startup & In-Game Menu) -->
+  <div id="modal-course-select" class="modal-overlay hidden">
+    <div class="modal-content glass-panel course-select-modal">
+      <div class="modal-header">
+        <div class="course-modal-title">
+          <span class="course-modal-icon">⛳</span>
+          <div>
+            <h3>Select Championship Course</h3>
+            <p class="subtitle" style="margin:2px 0 0; color:var(--text-muted); font-size:0.85rem">Choose your 9-hole disc golf destination</p>
+          </div>
+        </div>
+        <button class="modal-close" id="btn-close-course-select">&times;</button>
+      </div>
+
+      <div class="courses-grid">
+        <!-- Course 1: Pine Valley -->
+        <div class="course-card" id="card-pine-valley" data-course="pineValley">
+          <div class="course-card-banner pine-banner">
+            <span class="course-badge summer-badge">🌲 SUMMER PARK</span>
+            <h4>Pine Valley</h4>
+            <span class="course-subtitle">Pacific Northwest Championship</span>
+          </div>
+          <div class="course-card-body">
+            <div class="course-stats-strip">
+              <div class="strip-item"><span class="stat-lbl">PAR</span><span class="stat-val">30</span></div>
+              <div class="strip-item"><span class="stat-lbl">HOLES</span><span class="stat-val">9</span></div>
+              <div class="strip-item"><span class="stat-lbl">LENGTH</span><span class="stat-val">3,405 FT</span></div>
+              <div class="strip-item"><span class="stat-lbl">ELEVATION</span><span class="stat-val">±46 FT</span></div>
+            </div>
+            <p class="course-desc">
+              Towering pines, sheer granite cliffs, and a signature island green over crystal blue waters. A classic Pacific Northwest test of precision, shot-shaping, and distance control.
+            </p>
+            <div class="course-highlights">
+              <span class="chip">🌲 Towering Pines</span>
+              <span class="chip">🏝️ Island Lake (Hole 6)</span>
+              <span class="chip">🏔️ Bluff Plunge (Hole 3)</span>
+            </div>
+            <button class="select-course-btn" data-course="pineValley">PLAY PINE VALLEY</button>
+          </div>
+        </div>
+
+        <!-- Course 2: Maple Ridge (NEW!) -->
+        <div class="course-card active-card" id="card-maple-ridge" data-course="mapleRidge">
+          <div class="course-card-banner maple-banner">
+            <span class="course-badge autumn-badge">🍁 NEW FALL THEME</span>
+            <h4>Maple Ridge</h4>
+            <span class="course-subtitle">Sunny Autumn Glen Estate</span>
+          </div>
+          <div class="course-card-body">
+            <div class="course-stats-strip">
+              <div class="strip-item"><span class="stat-lbl">PAR</span><span class="stat-val">31</span></div>
+              <div class="strip-item"><span class="stat-lbl">HOLES</span><span class="stat-val">9</span></div>
+              <div class="strip-item"><span class="stat-lbl">LENGTH</span><span class="stat-val">3,490 FT</span></div>
+              <div class="strip-item"><span class="stat-lbl">ELEVATION</span><span class="stat-val">±36 FT</span></div>
+            </div>
+            <p class="course-desc">
+              Sunny autumn paradise filled with blazing sugar maples, golden birches, a historic covered wooden bridge, rustic red timber barn, apple orchard, and interactive fluttering leaves that shower down when trees are struck!
+            </p>
+            <div class="course-highlights">
+              <span class="chip">🍁 Falling Leaf Physics</span>
+              <span class="chip">🌉 Covered Bridge (Hole 3)</span>
+              <span class="chip">🚜 Red Timber Barn (Hole 9)</span>
+            </div>
+            <button class="select-course-btn highlight-btn" data-course="mapleRidge">PLAY MAPLE RIDGE</button>
+          </div>
+        </div>
+
+        <!-- Course 3: Frost Peak Ski Resort (NEW FREEZING THEME!) -->
+        <div class="course-card" id="card-frost-peak" data-course="frostPeak">
+          <div class="course-card-banner frost-banner">
+            <span class="course-badge winter-badge">❄️ NEW ALPINE RESORT</span>
+            <h4>Frost Peak</h4>
+            <span class="course-subtitle">Glacier Ski Resort Championship</span>
+          </div>
+          <div class="course-card-body">
+            <div class="course-stats-strip">
+              <div class="strip-item"><span class="stat-lbl">PAR</span><span class="stat-val">31</span></div>
+              <div class="strip-item"><span class="stat-lbl">HOLES</span><span class="stat-val">9</span></div>
+              <div class="strip-item"><span class="stat-lbl">LENGTH</span><span class="stat-val">3,500 FT</span></div>
+              <div class="strip-item"><span class="stat-lbl">ELEVATION</span><span class="stat-val">±38 FT</span></div>
+            </div>
+            <p class="course-desc">
+              High-altitude winter paradise on an active alpine ski resort! Features groomed snow ski runs, slick ice floors that send discs sliding for huge distances, quad chairlifts, alpine chalets, and a signature mandatory hazard (Mando) on Hole 5.
+            </p>
+            <div class="course-highlights">
+              <span class="chip">🧊 Long Ice Slides</span>
+              <span class="chip">⚠️ Mando Hazard (Hole 5)</span>
+              <span class="chip">⛷️ Ski Lift & Chalet (Hole 9)</span>
+            </div>
+            <button class="select-course-btn frost-btn" data-course="frostPeak">PLAY FROST PEAK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End of Round Summary Modal -->
+  <div id="modal-gameover" class="modal-overlay hidden">
+    <div class="modal-content glass-panel" style="text-align:center; max-width: 620px">
+      <div class="modal-header" style="justify-content:center">
+        <h3>Round Completed!</h3>
+      </div>
+      <p style="color:var(--text-muted); font-size:0.9rem">Congratulations on finishing all 9 holes at Pine Valley!</p>
+
+      <div class="rating-box" style="margin-top:16px">
+        <h4>Estimated Round Rating</h4>
+        <div class="rating-score" id="go-rating">985 PDGA</div>
+        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px">
+          Final Score: <b id="go-final-score" style="color:#ffffff">30 (E)</b>
+        </div>
+      </div>
+
+      <!-- Traditional Scoring Stats Grid -->
+      <div class="summary-stats-grid">
+        <div class="summary-card">
+          <div class="val" id="go-stat-aces">0</div>
+          <div class="lbl">Aces</div>
+        </div>
+        <div class="summary-card">
+          <div class="val" id="go-stat-birdies">3</div>
+          <div class="lbl">Birdies</div>
+        </div>
+        <div class="summary-card">
+          <div class="val" id="go-stat-pars">5</div>
+          <div class="lbl">Pars</div>
+        </div>
+        <div class="summary-card">
+          <div class="val" id="go-stat-bogeys">1</div>
+          <div class="lbl">Bogeys</div>
+        </div>
+      </div>
+
+      <!-- Advanced Circle 1 & Circle 2 DGPT Stats Grid -->
+      <div class="summary-stats-grid c1-stats-grid" style="margin-top: 10px">
+        <div class="summary-card highlight-c1">
+          <div class="val" id="go-stat-c1r">0%</div>
+          <div class="lbl">C1 in Regulation</div>
+        </div>
+        <div class="summary-card highlight-c2">
+          <div class="val" id="go-stat-c2r">0%</div>
+          <div class="lbl">C2 in Regulation</div>
+        </div>
+        <div class="summary-card highlight-putting">
+          <div class="val" id="go-stat-c1x">0%</div>
+          <div class="lbl">C1X Putting</div>
+        </div>
+        <div class="summary-card highlight-c2putt">
+          <div class="val" id="go-stat-c2putt">0</div>
+          <div class="lbl">C2 Putts Made</div>
+        </div>
+      </div>
+
+      <button id="btn-replay-course" class="throw-btn" style="margin-top:16px">PLAY AGAIN (NEW WIND)</button>
+    </div>
+  </div>
+
+  <!-- Game Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/course.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
